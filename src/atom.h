@@ -80,6 +80,9 @@ class Atom : protected Pointers {
   double **omega,**angmom,**torque;
   int *ellipsoid,*line,*tri,*body;
 
+  // DPD
+  double **fC, **fR, **fD;
+
   // molecular systems
 
   tagint *molecule;

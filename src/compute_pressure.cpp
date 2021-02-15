@@ -68,6 +68,7 @@ ComputePressure::ComputePressure(LAMMPS *lmp, int narg, char **arg) :
   // process optional args
 
   pairhybridflag = 0;
+  dpdCflag = dpdDflag = dpdRflag = 0;
   if (narg == 4) {
     keflag = 1;
     pairflag = 1;
@@ -123,7 +124,11 @@ ComputePressure::ComputePressure(LAMMPS *lmp, int narg, char **arg) :
         pairflag = 1;
         bondflag = angleflag = dihedralflag = improperflag = 1;
         kspaceflag = fixflag = 1;
-      } else error->all(FLERR,"Illegal compute pressure command");
+      } 
+      else if (strcmp(arg[iarg],"dpdC") == 0) dpdCflag = 1;
+      else if (strcmp(arg[iarg],"dpdD") == 0) dpdDflag = 1;
+      else if (strcmp(arg[iarg],"dpdR") == 0) dpdRflag = 1;
+      else error->all(FLERR,"Illegal compute pressure command");
       iarg++;
     }
   }
@@ -190,6 +195,9 @@ void ComputePressure::init()
 
   if (pairhybridflag && force->pair) nvirial++;
   if (pairflag && force->pair) nvirial++;
+  if (dpdCflag && force->pair) nvirial++;
+  if (dpdDflag && force->pair) nvirial++;
+  if (dpdRflag && force->pair) nvirial++;
   if (atom->molecular != Atom::ATOMIC) {
     if (bondflag && force->bond) nvirial++;
     if (angleflag && force->angle) nvirial++;
@@ -209,6 +217,9 @@ void ComputePressure::init()
       vptr[nvirial++] = pairhybrid->virial;
     }
     if (pairflag && force->pair) vptr[nvirial++] = force->pair->virial;
+    if (dpdCflag && force->pair) vptr[nvirial++] = force->pair->virialC;
+    if (dpdDflag && force->pair) vptr[nvirial++] = force->pair->virialD;
+    if (dpdRflag && force->pair) vptr[nvirial++] = force->pair->virialR;
     if (bondflag && force->bond) vptr[nvirial++] = force->bond->virial;
     if (angleflag && force->angle) vptr[nvirial++] = force->angle->virial;
     if (dihedralflag && force->dihedral)

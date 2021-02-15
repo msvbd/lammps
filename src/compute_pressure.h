@@ -45,6 +45,7 @@ class ComputePressure : public Compute {
   class Pair *pairhybrid;
   int keflag,pairflag,bondflag,angleflag,dihedralflag,improperflag;
   int fixflag,kspaceflag;
+  int dpdCflag, dpdRflag, dpdDflag;
 
   void virial_compute(int, int);
 

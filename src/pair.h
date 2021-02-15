@@ -36,6 +36,9 @@ class Pair : protected Pointers {
 
   double eng_vdwl,eng_coul;      // accumulated energies
   double virial[6];              // accumulated virial: xx,yy,zz,xy,xz,yz
+  double virialC[6];              // accumulated virial
+  double virialD[6];              // accumulated virial
+  double virialR[6];              // accumulated virial
   double *eatom,**vatom;         // accumulated per-atom energy/virial
   double **cvatom;               // accumulated per-atom centroid virial
 
@@ -136,6 +139,9 @@ class Pair : protected Pointers {
 
   void v_tally(int, double *, double *);
   void ev_tally(int, int, int, int, double, double, double,
+                double, double, double);
+  void ev_tally_dpd(int, int, int, int, double, double, double,
+                double, double, double,
                 double, double, double);
   void ev_tally3(int, int, int, double, double,
                  double *, double *, double *, double *);
@@ -260,6 +266,7 @@ class Pair : protected Pointers {
   void v_tally_tensor(int, int, int, int,
                       double, double, double, double, double, double);
   void virial_fdotr_compute();
+  void virial_fDPDdotr_compute(const char *);
 
   inline int sbmask(int j) const {
     return j >> SBBITS & 3;

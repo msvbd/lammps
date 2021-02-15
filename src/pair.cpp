@@ -849,6 +849,9 @@ void Pair::ev_setup(int eflag, int vflag, int alloc)
 
   if (eflag_global) eng_vdwl = eng_coul = 0.0;
   if (vflag_global || vflag_fdotr) for (i = 0; i < 6; i++) virial[i] = 0.0;
+  if (vflag_global || vflag_fdotr) for (i = 0; i < 6; i++) virialC[i] = 0.0;
+  if (vflag_global || vflag_fdotr) for (i = 0; i < 6; i++) virialD[i] = 0.0;
+  if (vflag_global || vflag_fdotr) for (i = 0; i < 6; i++) virialR[i] = 0.0;
   if (eflag_atom && alloc) {
     n = atom->nlocal;
     if (force->newton) n += atom->nghost;
@@ -1013,6 +1016,101 @@ void Pair::ev_tally(int i, int j, int nlocal, int newton_pair,
                              evdwl, ecoul, fpair, delx, dely, delz);
     }
   }
+}
+/* ----------------------------------------------------------------------
+   tally eng_vdwl and virial into global and per-atom accumulators
+   need i < nlocal test since called by bond_quartic and dihedral_charmm
+   DPD
+------------------------------------------------------------------------- */
+
+void Pair::ev_tally_dpd(int i, int j, int nlocal, int newton_pair,
+                    double evdwl, double ecoul, double fpair,
+                    double fpairC, double fpairD, double fpairR,
+                    double delx, double dely, double delz)
+{
+  double vC[6],vD[6],vR[6];
+
+  if (vflag_either) {
+    // Conservative 
+    vC[0] = delx*delx*fpairC;
+    vC[1] = dely*dely*fpairC;
+    vC[2] = delz*delz*fpairC;
+    vC[3] = delx*dely*fpairC;
+    vC[4] = delx*delz*fpairC;
+    vC[5] = dely*delz*fpairC;
+
+    if (vflag_global) {
+      if (newton_pair) {
+        virialC[0] += vC[0];
+        virialC[1] += vC[1];
+        virialC[2] += vC[2];
+        virialC[3] += vC[3];
+        virialC[4] += vC[4];
+        virialC[5] += vC[5];
+      } else if (i < nlocal || j < nlocal) {
+          virialC[0] += 0.5*vC[0];
+          virialC[1] += 0.5*vC[1];
+          virialC[2] += 0.5*vC[2];
+          virialC[3] += 0.5*vC[3];
+          virialC[4] += 0.5*vC[4];
+          virialC[5] += 0.5*vC[5];
+      }
+    }
+    // Dissipative 
+    vD[0] = delx*delx*fpairD;
+    vD[1] = dely*dely*fpairD;
+    vD[2] = delz*delz*fpairD;
+    vD[3] = delx*dely*fpairD;
+    vD[4] = delx*delz*fpairD;
+    vD[5] = dely*delz*fpairD;
+
+    if (vflag_global) {
+      if (newton_pair) {
+        virialD[0] += vD[0];
+        virialD[1] += vD[1];
+        virialD[2] += vD[2];
+        virialD[3] += vD[3];
+        virialD[4] += vD[4];
+        virialD[5] += vD[5];
+      } else if (i < nlocal || j < nlocal) {
+          virialD[0] += 0.5*vD[0];
+          virialD[1] += 0.5*vD[1];
+          virialD[2] += 0.5*vD[2];
+          virialD[3] += 0.5*vD[3];
+          virialD[4] += 0.5*vD[4];
+          virialD[5] += 0.5*vD[5];
+      }
+    }
+    // Random 
+    vR[0] = delx*delx*fpairR;
+    vR[1] = dely*dely*fpairR;
+    vR[2] = delz*delz*fpairR;
+    vR[3] = delx*dely*fpairR;
+    vR[4] = delx*delz*fpairR;
+    vR[5] = dely*delz*fpairR;
+
+    if (vflag_global) {
+      if (newton_pair) {
+        virialR[0] += vR[0];
+        virialR[1] += vR[1];
+        virialR[2] += vR[2];
+        virialR[3] += vR[3];
+        virialR[4] += vR[4];
+        virialR[5] += vR[5];
+      } else if (i < nlocal || j < nlocal) {
+          virialR[0] += 0.5*vR[0];
+          virialR[1] += 0.5*vR[1];
+          virialR[2] += 0.5*vR[2];
+          virialR[3] += 0.5*vR[3];
+          virialR[4] += 0.5*vR[4];
+          virialR[5] += 0.5*vR[5];
+      }
+    }
+  }
+
+  ev_tally(i, j, nlocal, newton_pair,
+              evdwl, ecoul, fpair,
+              delx, dely, delz);
 }
 
 /* ----------------------------------------------------------------------
@@ -1608,6 +1706,75 @@ void Pair::virial_fdotr_compute()
   // or when respa is used with gpu pair styles
 
   vflag_fdotr = 0;
+}
+
+
+/* ----------------------------------------------------------------------
+   compute global pair virial via summing F dot r over own & ghost atoms
+   at this point, only pairwise forces have been accumulated in atom->f
+------------------------------------------------------------------------- */
+
+void Pair::virial_fDPDdotr_compute(const  char *str)
+{
+  double **x = atom->x;
+  double **f;
+  double *virial;
+
+  if (strcmp(str,"R") == 0) {
+    f = atom->fR;
+    virial = virialR;
+  } else if (strcmp(str,"D") == 0) {
+    f = atom->fD;
+    virial = virialD;
+  } else {
+    f = atom->fC;
+    virial = virialC;
+  }
+  
+
+  // sum over force on all particles including ghosts
+
+  if (neighbor->includegroup == 0) {
+    int nall = atom->nlocal + atom->nghost;
+    for (int i = 0; i < nall; i++) {
+      virial[0] += f[i][0]*x[i][0];
+      virial[1] += f[i][1]*x[i][1];
+      virial[2] += f[i][2]*x[i][2];
+      virial[3] += f[i][1]*x[i][0];
+      virial[4] += f[i][2]*x[i][0];
+      virial[5] += f[i][2]*x[i][1];
+    }
+
+  // neighbor includegroup flag is set
+  // sum over force on initial nfirst particles and ghosts
+
+  } else {
+    int nall = atom->nfirst;
+    for (int i = 0; i < nall; i++) {
+      virial[0] += f[i][0]*x[i][0];
+      virial[1] += f[i][1]*x[i][1];
+      virial[2] += f[i][2]*x[i][2];
+      virial[3] += f[i][1]*x[i][0];
+      virial[4] += f[i][2]*x[i][0];
+      virial[5] += f[i][2]*x[i][1];
+    }
+
+    nall = atom->nlocal + atom->nghost;
+    for (int i = atom->nlocal; i < nall; i++) {
+      virial[0] += f[i][0]*x[i][0];
+      virial[1] += f[i][1]*x[i][1];
+      virial[2] += f[i][2]*x[i][2];
+      virial[3] += f[i][1]*x[i][0];
+      virial[4] += f[i][2]*x[i][0];
+      virial[5] += f[i][2]*x[i][1];
+    }
+  }
+
+  // prevent multiple calls to update the virial
+  // when a hybrid pair style uses both a gpu and non-gpu pair style
+  // or when respa is used with gpu pair styles
+
+  //vflag_fdotr = 0;
 }
 
 /* ----------------------------------------------------------------------

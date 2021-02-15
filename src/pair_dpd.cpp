@@ -63,7 +63,7 @@ PairDPD::~PairDPD()
 void PairDPD::compute(int eflag, int vflag)
 {
   int i,j,ii,jj,inum,jnum,itype,jtype;
-  double xtmp,ytmp,ztmp,delx,dely,delz,evdwl,fpair;
+  double xtmp,ytmp,ztmp,delx,dely,delz,evdwl,fpair,fpairC,fpairD,fpairR;
   double vxtmp,vytmp,vztmp,delvx,delvy,delvz;
   double rsq,r,rinv,dot,wd,randnum,factor_dpd;
   int *ilist,*jlist,*numneigh,**firstneigh;
@@ -74,6 +74,9 @@ void PairDPD::compute(int eflag, int vflag)
   double **x = atom->x;
   double **v = atom->v;
   double **f = atom->f;
+  double **fC = atom->fC;
+  double **fD = atom->fD;
+  double **fR = atom->fR;
   int *type = atom->type;
   int nlocal = atom->nlocal;
   double *special_lj = force->special_lj;
@@ -125,10 +128,26 @@ void PairDPD::compute(int eflag, int vflag)
         // drag force = -gamma * wd^2 * (delx dot delv) / r
         // random force = sigma * wd * rnd * dtinvsqrt;
 
-        fpair = a0[itype][jtype]*wd;
-        fpair -= gamma[itype][jtype]*wd*wd*dot*rinv;
-        fpair += sigma[itype][jtype]*wd*randnum*dtinvsqrt;
-        fpair *= factor_dpd*rinv;
+        fpairC =  a0[itype][jtype]*wd;
+        fpairD = -gamma[itype][jtype]*wd*wd*dot*rinv;
+        fpairR =  sigma[itype][jtype]*wd*randnum*dtinvsqrt;
+        fpairC *= factor_dpd*rinv;
+        fpairD *= factor_dpd*rinv;
+        fpairR *= factor_dpd*rinv;
+
+        fpair = fpairC + fpairD + fpairR;
+
+        /* fC[i][0] += delx*fpairC;
+        fC[i][1] += dely*fpairC;
+        fC[i][2] += delz*fpairC;
+
+        fD[i][0] += delx*fpairD;
+        fD[i][1] += dely*fpairD;
+        fD[i][2] += delz*fpairD;
+
+        fR[i][0] += delx*fpairR;
+        fR[i][1] += dely*fpairR;
+        fR[i][2] += delz*fpairR; */
 
         f[i][0] += delx*fpair;
         f[i][1] += dely*fpair;
@@ -137,6 +156,18 @@ void PairDPD::compute(int eflag, int vflag)
           f[j][0] -= delx*fpair;
           f[j][1] -= dely*fpair;
           f[j][2] -= delz*fpair;
+
+          /* fC[j][0] -= delx*fpairC;
+          fC[j][1] -= dely*fpairC;
+          fC[j][2] -= delz*fpairC;
+
+          fD[j][0] -= delx*fpairD;
+          fD[j][1] -= dely*fpairD;
+          fD[j][2] -= delz*fpairD;
+
+          fR[j][0] -= delx*fpairR;
+          fR[j][1] -= dely*fpairR;
+          fR[j][2] -= delz*fpairR; */
         }
 
         if (eflag) {
@@ -147,13 +178,18 @@ void PairDPD::compute(int eflag, int vflag)
           evdwl *= factor_dpd;
         }
 
-        if (evflag) ev_tally(i,j,nlocal,newton_pair,
-                             evdwl,0.0,fpair,delx,dely,delz);
+        if (evflag) ev_tally_dpd(i,j,nlocal,newton_pair,
+                             evdwl,0.0,fpair,fpairC,fpairD,fpairR,delx,dely,delz);
       }
     }
   }
 
-  if (vflag_fdotr) virial_fdotr_compute();
+  if (vflag_fdotr) {
+    virial_fDPDdotr_compute("C");
+    virial_fDPDdotr_compute("D");
+    virial_fDPDdotr_compute("R");
+    virial_fdotr_compute();
+  }
 }
 
 /* ----------------------------------------------------------------------
@@ -165,6 +201,11 @@ void PairDPD::allocate()
   int i,j;
   allocated = 1;
   int n = atom->ntypes;
+  int nmax = atom->nmax;
+
+  //atom->fC = memory->grow(atom->fC,nmax*comm->nthreads,3,"atom:fC");
+  //atom->fD = memory->grow(atom->fD,nmax*comm->nthreads,3,"atom:fD");
+  //atom->fR = memory->grow(atom->fR,nmax*comm->nthreads,3,"atom:fR");
 
   memory->create(setflag,n+1,n+1,"pair:setflag");
   for (i = 1; i <= n; i++)

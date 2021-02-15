@@ -111,6 +111,9 @@ Atom::Atom(LAMMPS *lmp) : Pointers(lmp)
   q = nullptr;
   mu = nullptr;
 
+  // DPD
+  fC = fD = fR = nullptr;
+
   // finite-size particles
 
   omega = angmom = torque = nullptr;
@@ -278,6 +281,10 @@ Atom::~Atom()
   memory->destroy(v);
   memory->destroy(f);
 
+  memory->destroy(fC);
+  memory->destroy(fD);
+  memory->destroy(fR);
+
   // delete peratom data struct
 
   for (int i = 0; i < nperatom; i++)
@@ -374,6 +381,9 @@ void Atom::peratom_create()
   add_peratom("x",&x,DOUBLE,3);
   add_peratom("v",&v,DOUBLE,3);
   add_peratom("f",&f,DOUBLE,3,1);      // set per-thread flag
+  add_peratom("fC",&fC,DOUBLE,3,1);      // set per-thread flag
+  add_peratom("fD",&fD,DOUBLE,3,1);      // set per-thread flag
+  add_peratom("fR",&fR,DOUBLE,3,1);      // set per-thread flag
 
   add_peratom("rmass",&rmass,DOUBLE,0);
   add_peratom("q",&q,DOUBLE,0);
@@ -2600,6 +2610,10 @@ void *Atom::extract(const char *name)
 
   if (strcmp(name,"dpdTheta") == 0) return (void *) dpdTheta;
   if (strcmp(name,"edpd_temp") == 0) return (void *) edpd_temp;
+
+  if (strcmp(name,"fC") == 0) return (void *) fC;
+  if (strcmp(name,"fD") == 0) return (void *) fD;
+  if (strcmp(name,"fR") == 0) return (void *) fR;
 
   // end of customization section
   // --------------------------------------------------------------------

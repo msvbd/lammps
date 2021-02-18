@@ -247,6 +247,9 @@ void AtomVec::grow(int n)
   x = memory->grow(atom->x,nmax,3,"atom:x");
   v = memory->grow(atom->v,nmax,3,"atom:v");
   f = memory->grow(atom->f,nmax*comm->nthreads,3,"atom:f");
+  f = memory->grow(atom->fC,nmax*comm->nthreads,3,"atom:f");
+  f = memory->grow(atom->fD,nmax*comm->nthreads,3,"atom:f");
+  f = memory->grow(atom->fR,nmax*comm->nthreads,3,"atom:f");
 
   for (int i = 0; i < ngrow; i++) {
     pdata = mgrow.pdata[i];

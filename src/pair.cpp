@@ -192,7 +192,8 @@ void Pair::modify_params(int narg, char **arg)
       else error->all(FLERR,"Illegal pair_modify command");
       iarg += 2;
     } else if (strcmp(arg[iarg],"nofdotr") == 0) {
-      if (iarg+2 > narg) error->all(FLERR,"Illegal pair_modify command");
+      //printf("%d %d\n", narg, iarg);
+      if (iarg+1 > narg) error->all(FLERR,"Illegal pair_modify command");
       no_virial_fdotr_compute = 1;
       ++iarg;
     } else error->all(FLERR,"Illegal pair_modify command");

@@ -137,7 +137,7 @@ void PairDPD::compute(int eflag, int vflag)
 
         fpair = fpairC + fpairD + fpairR;
 
-        /* fC[i][0] += delx*fpairC;
+        fC[i][0] += delx*fpairC;
         fC[i][1] += dely*fpairC;
         fC[i][2] += delz*fpairC;
 
@@ -147,7 +147,7 @@ void PairDPD::compute(int eflag, int vflag)
 
         fR[i][0] += delx*fpairR;
         fR[i][1] += dely*fpairR;
-        fR[i][2] += delz*fpairR; */
+        fR[i][2] += delz*fpairR;
 
         f[i][0] += delx*fpair;
         f[i][1] += dely*fpair;
@@ -157,7 +157,7 @@ void PairDPD::compute(int eflag, int vflag)
           f[j][1] -= dely*fpair;
           f[j][2] -= delz*fpair;
 
-          /* fC[j][0] -= delx*fpairC;
+          fC[j][0] -= delx*fpairC;
           fC[j][1] -= dely*fpairC;
           fC[j][2] -= delz*fpairC;
 
@@ -167,7 +167,7 @@ void PairDPD::compute(int eflag, int vflag)
 
           fR[j][0] -= delx*fpairR;
           fR[j][1] -= dely*fpairR;
-          fR[j][2] -= delz*fpairR; */
+          fR[j][2] -= delz*fpairR;
         }
 
         if (eflag) {
@@ -184,12 +184,7 @@ void PairDPD::compute(int eflag, int vflag)
     }
   }
 
-  if (vflag_fdotr) {
-    virial_fDPDdotr_compute("C");
-    virial_fDPDdotr_compute("D");
-    virial_fDPDdotr_compute("R");
-    virial_fdotr_compute();
-  }
+  if (vflag_fdotr) virial_fdotr_compute();
 }
 
 /* ----------------------------------------------------------------------
@@ -203,9 +198,9 @@ void PairDPD::allocate()
   int n = atom->ntypes;
   int nmax = atom->nmax;
 
-  //atom->fC = memory->grow(atom->fC,nmax*comm->nthreads,3,"atom:fC");
-  //atom->fD = memory->grow(atom->fD,nmax*comm->nthreads,3,"atom:fD");
-  //atom->fR = memory->grow(atom->fR,nmax*comm->nthreads,3,"atom:fR");
+  //atom->fC = memory->grow(atom->fC,2*nmax*comm->nthreads,3,"atom:fC");
+  //atom->fD = memory->grow(atom->fD,2*nmax*comm->nthreads,3,"atom:fD");
+  //atom->fR = memory->grow(atom->fR,2*nmax*comm->nthreads,3,"atom:fR");
 
   memory->create(setflag,n+1,n+1,"pair:setflag");
   for (i = 1; i <= n; i++)

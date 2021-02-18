@@ -146,6 +146,9 @@ void PairHybrid::compute(int eflag, int vflag)
     }
     if (vflag_global) {
       for (n = 0; n < 6; n++) virial[n] += styles[m]->virial[n];
+      for (n = 0; n < 6; n++) virialC[n] += styles[m]->virialC[n];
+      for (n = 0; n < 6; n++) virialD[n] += styles[m]->virialD[n];
+      for (n = 0; n < 6; n++) virialR[n] += styles[m]->virialR[n];
     }
     if (eflag_atom) {
       n = atom->nlocal;
